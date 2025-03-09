@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -42,4 +43,12 @@ public class TransactionRate extends AbsBaseEntity implements Serializable {
 
     @Column(name="rate", precision = 15, scale = 16)
     private BigDecimal rate;
+
+
+    @Version
+    @Column(name = "version")
+    private Integer version = 0;
+
+    @Column(name = "created_time")
+    private LocalDateTime createdTime;
 }

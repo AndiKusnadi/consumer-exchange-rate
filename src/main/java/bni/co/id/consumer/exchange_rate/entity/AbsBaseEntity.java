@@ -1,14 +1,15 @@
 package bni.co.id.consumer.exchange_rate.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Version;
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-public abstract class AbsBaseEntity {
-    @Version
-    private Integer version;
+@Data
+public class AbsBaseEntity {
 
-    @Column(name = "created_time")
-    private LocalDateTime createdTime;
+
 }

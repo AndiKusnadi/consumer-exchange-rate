@@ -20,14 +20,17 @@ public class ConsumerDataService {
     @Autowired
     private GeneralFacility generalFacility;
 
+    @Autowired
+    private ExchangeRateService exchangeRateService;
+
     @KafkaListener(topics = "${topic.exchange.rate}", groupId = "${topic.exchange.rate.group.id}")
     public void listen(ConsumerRecord<String, String> record) {
         String consumeStr = record.value();
         try {
             CurrencyVO currencyVO = this.generalFacility.getObjectMapper().readValue(consumeStr, CurrencyVO.class);
             log.info("base " + currencyVO.getCurrencyBase());
-
-        } catch (JsonProcessingException e) {
+            this.exchangeRateService.saveExchangeRateData(currencyVO);
+        } catch (JsonProcessingException  e) {
             throw new RuntimeException(e);
         }
     }
