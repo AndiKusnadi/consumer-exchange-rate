@@ -29,6 +29,7 @@ dependencies {
 	implementation("org.springframework.kafka:spring-kafka")
 
 	compileOnly("org.projectlombok:lombok")
+	runtimeOnly("org.postgresql:postgresql")
 
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	runtimeOnly("com.oracle.database.jdbc:ojdbc11")

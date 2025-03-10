@@ -21,7 +21,7 @@ public class MRate implements Serializable {
 
     @Version
     @Column(name = "version")
-    private Integer version = 0;
+    private Integer version;
 
     @Column(name = "created_time")
     private LocalDateTime createdTime;
