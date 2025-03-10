@@ -8,8 +8,10 @@ import bni.co.id.consumer.exchange_rate.repository.TransactionRateDetailReposito
 import bni.co.id.consumer.exchange_rate.repository.TransactionRateHeaderRepository;
 import bni.co.id.consumer.exchange_rate.vo.CurrencyVO;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.StaleObjectStateException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,9 @@ import jakarta.persistence.OptimisticLockException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 @Slf4j
@@ -38,10 +43,10 @@ public class ExchangeRateService {
 
     @Transactional()
     @Retryable(value = OptimisticLockException.class, maxAttempts = 3)
-    public void saveExchangeRateData(CurrencyVO pValue) {
+    public void saveExchangeRateData(CurrencyVO pValue) throws ExecutionException, InterruptedException {
         //save currency id first.
         Optional<MRate> rate = this.rateRepository.findById(pValue.getCurrencyBase());
-        TransactionRateHeader transactionRateHeader = new TransactionRateHeader();
+        final TransactionRateHeader transactionRateHeader = new TransactionRateHeader();
 
         if (rate.isEmpty()) {
             MRate rateEntity = new MRate();
@@ -58,7 +63,8 @@ public class ExchangeRateService {
             transactionRateHeader.setCurrencyBase(rateEntity);
 //            entityManager.persist(transactionRateHeader);
 
-            transactionRateHeader = transactionRateHeaderRepository.saveAndFlush(transactionRateHeader);
+            TransactionRateHeader header = transactionRateHeaderRepository.saveAndFlush(transactionRateHeader);
+            transactionRateHeader.setId(header.getId());
 
             log.info("save base currency {}", rateEntity.getCurrencyId());
 
@@ -68,50 +74,39 @@ public class ExchangeRateService {
             transactionRateHeader.setTrxDate(pValue.getTransactionDate());
             transactionRateHeader.setCurrencyBase(rate.get());
 //            entityManager.persist(transactionRateHeader);
-            transactionRateHeader = transactionRateHeaderRepository.saveAndFlush(transactionRateHeader);
+            TransactionRateHeader header = transactionRateHeaderRepository.saveAndFlush(transactionRateHeader);
+            transactionRateHeader.setId(header.getId());
         }
 
-//        ExecutorService executor = Executors.newFixedThreadPool(5);
+//        ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
         for (String key : pValue.getRates().keySet()) {
-//            executor.execute(() -> {
+//            var threadRunning = executor.submit(() -> {
                 Optional<MRate> rateEntityTrx = this.rateRepository.findById(key);
                 String rateValue = pValue.getRates().get(key);
 //                log.info("Rate value111 " + rateValue);
 
                 String testValue = rateValue.substring(rateValue.indexOf("."), rateValue.length());
-                if(testValue.length() > 5)
+                if (testValue.length() > 5)
                     rateValue = rateValue.substring(0, rateValue.indexOf(".") + 5);
                 else
                     rateValue = rateValue.substring(0, testValue.length());
 
 //                log.info("Rate value222 " + rateValue);
-
-//                rateValue = "12.3161";
-
                 if (rateEntityTrx.isEmpty()) {
                     MRate entity = new MRate();
                     entity.setCurrencyId(key);
                     entity.setCreatedTime(LocalDateTime.now());
-//                    entity.setVersion(0);
                     log.info("Save currency id {}", entity.getCurrencyId());
-//                    this.entityManager.persist(entity);
                     entity = this.rateRepository.saveAndFlush(entity);
-//                    this.rateRepository.flush();
 
-//                    try {
-                        TransactionRateDetail detail = new TransactionRateDetail();
-                        detail.setCreatedTime(LocalDateTime.now());
-                        detail.setTransactionRateHeaderId(transactionRateHeader);
-                        detail.setCurrencyId(entity);
-                        detail.setRate(new BigDecimal(rateValue));
-                        detail.setVersion(1);
-                        transactionRateDetailRepository.saveAndFlush(detail);
-//                        transactionRateDetailRepository.flush();
-                        log.info("Success save {}", entity.getCurrencyId());
-//                    }catch(Exception ex){
-//                        ex.printStackTrace();
-//                        log.error("RRRRRR 111 " + rateValue);
-//                    }
+                    TransactionRateDetail detail = new TransactionRateDetail();
+                    detail.setCreatedTime(LocalDateTime.now());
+                    detail.setTransactionRateHeaderId(transactionRateHeader);
+                    detail.setCurrencyId(entity);
+                    detail.setRate(new BigDecimal(rateValue));
+                    detail.setVersion(1);
+                    transactionRateDetailRepository.saveAndFlush(detail);
+                    log.info("Success save {}", entity.getCurrencyId());
 
 //                    var rateTrx = addingRate(key, transactionRateHeader, new BigDecimal(rateValue));
 //                    try {
@@ -121,16 +116,16 @@ public class ExchangeRateService {
 //                    }
                 } else {
 //                    try {
-                        TransactionRateDetail detail = new TransactionRateDetail();
-                        detail.setCreatedTime(LocalDateTime.now());
-                        detail.setTransactionRateHeaderId(transactionRateHeader);
-                        detail.setCurrencyId(rateEntityTrx.get());
-                        detail.setRate(new BigDecimal(rateValue));
-                        detail.setVersion(1);
+                    TransactionRateDetail detail = new TransactionRateDetail();
+                    detail.setCreatedTime(LocalDateTime.now());
+                    detail.setTransactionRateHeaderId(transactionRateHeader);
+                    detail.setCurrencyId(rateEntityTrx.get());
+                    detail.setRate(new BigDecimal(rateValue));
+                    detail.setVersion(1);
 //                        entityManager.persist(detail);
 //                        entityManager.flush();
-                        transactionRateDetailRepository.saveAndFlush(detail);
-                        log.info("Save rate");
+                    transactionRateDetailRepository.saveAndFlush(detail);
+                    log.info("Save rate");
 //                        transactionRateDetailRepository.flush();
 //                    }catch(Exception ex){
 //                        log.error("aaaaa " + rateEntityTrx.get().getCurrencyId());
@@ -138,44 +133,45 @@ public class ExchangeRateService {
 //                    }
                 }
 //            });
+//            threadRunning.get();
         }
     }
 
 //    @Transactional
 //    @Retryable(value = StaleObjectStateException.class, maxAttempts = 3)
-//    Thread addingRate(String pName, TransactionRateHeader pHeader, BigDecimal pRate) {
-//        return virtualThread(
-//                pName,
-//                () -> {
-//                    MRate entity = new MRate();
-//                    entity.setCurrencyId(pName);
-//                    entity.setCreatedTime(LocalDateTime.now());
-//                    entity.setVersion(0);
-//                    log.info("Save currency id {}", entity.getCurrencyId());
-//                    this.rateRepository.saveAndFlush(entity);
-////                    this.rateRepository.flush();
-//
-//                    try {
-//                        TransactionRateDetail detail = new TransactionRateDetail();
-//                        detail.setCreatedTime(LocalDateTime.now());
-//                        detail.setTransactionRateHeaderId(pHeader);
-//                        detail.setCurrencyId(entity.getCurrencyId());
-//                        detail.setRate(pRate);
-//                        transactionRateDetailRepository.saveAndFlush(detail);
-////                        transactionRateDetailRepository.flush();
-//                        log.info("Success save {}", entity.getCurrencyId());
-//                    }catch(Exception ex){
-//                        ex.printStackTrace();
-//                        log.error("RRRRRR 111 " + pRate.toString());
-//                    }
-//                });
-//    }
-//
+    Thread addingRate(String pName, TransactionRateHeader pHeader, BigDecimal pRate) {
+        return virtualThread(
+                pName,
+                () -> {
+                    MRate entity = new MRate();
+                    entity.setCurrencyId(pName);
+                    entity.setCreatedTime(LocalDateTime.now());
+                    entity.setVersion(1);
+                    log.info("Save currency id {}", entity.getCurrencyId());
+                    entity = this.rateRepository.saveAndFlush(entity);
+//                    this.rateRepository.flush();
+
+                    try {
+                        TransactionRateDetail detail = new TransactionRateDetail();
+                        detail.setCreatedTime(LocalDateTime.now());
+                        detail.setTransactionRateHeaderId(pHeader);
+                        detail.setCurrencyId(entity);
+                        detail.setRate(pRate);
+                        transactionRateDetailRepository.saveAndFlush(detail);
+//                        transactionRateDetailRepository.flush();
+                        log.info("Success save {}", entity.getCurrencyId());
+                    }catch(Exception ex){
+                        ex.printStackTrace();
+                        log.error("RRRRRR 111 " + pRate.toString());
+                    }
+                });
+    }
+
 //    @Transactional
 //    @Retryable(value = StaleObjectStateException.class, maxAttempts = 3)
-//    Thread virtualThread(String name, Runnable runnable) {
-//        return Thread.ofVirtual()
-//                .name(name)
-//                .start(runnable);
-//    }
+    Thread virtualThread(String name, Runnable runnable) {
+        return Thread.ofVirtual()
+                .name(name)
+                .start(runnable);
+    }
 }

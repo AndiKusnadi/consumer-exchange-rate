@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.ExecutionException;
+
 @Service
 @Slf4j
 public class ConsumerDataService {
@@ -30,7 +32,7 @@ public class ConsumerDataService {
             CurrencyVO currencyVO = this.generalFacility.getObjectMapper().readValue(consumeStr, CurrencyVO.class);
             log.info("base " + currencyVO.getCurrencyBase());
             this.exchangeRateService.saveExchangeRateData(currencyVO);
-        } catch (JsonProcessingException  e) {
+        } catch (JsonProcessingException | ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
