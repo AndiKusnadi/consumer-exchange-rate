@@ -84,13 +84,15 @@ public class ExchangeRateService {
                 Optional<MRate> rateEntityTrx = this.rateRepository.findById(key);
                 String rateValue = pValue.getRates().get(key);
 //                log.info("Rate value111 " + rateValue);
+//                String testValue = rateValue.substring(rateValue.indexOf("."), rateValue.length());
+//                if (testValue.length() > 2)
+//                    rateValue = rateValue.substring(0, rateValue.indexOf(".") + 2);
+//                else
+//                    rateValue = rateValue.substring(0, testValue.length());
 
-                String testValue = rateValue.substring(rateValue.indexOf("."), rateValue.length());
-                if (testValue.length() > 5)
-                    rateValue = rateValue.substring(0, rateValue.indexOf(".") + 5);
-                else
-                    rateValue = rateValue.substring(0, testValue.length());
-
+//                if(key.equals("IDR")){
+//                    log.info("Stopeed");
+//                }
 //                log.info("Rate value222 " + rateValue);
                 if (rateEntityTrx.isEmpty()) {
                     MRate entity = new MRate();
