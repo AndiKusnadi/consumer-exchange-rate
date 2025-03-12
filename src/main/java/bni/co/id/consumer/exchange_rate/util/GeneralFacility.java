@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.*;
@@ -22,6 +23,7 @@ public class GeneralFacility {
 
     private  final ObjectMapper m_objectMapper = new ObjectMapper();
 
+    @Bean
     public ObjectMapper getObjectMapper() {
         m_objectMapper.registerModule(new JavaTimeModule());
         m_objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
